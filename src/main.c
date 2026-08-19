@@ -1,52 +1,85 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <readline/history.h>
 #include <readline/readline.h>
-#include "history.h"
+
+#include "token.h"
+#include "lexer.h"
+#include "parser.h"
+#include "expand.h"
 
 int main(void)
 {
-    printf("====================================\n");
-    printf("        Shell Forge\n");
-    printf(" A Unix Style Shell written in C\n");
-    printf("====================================\n");
+    /* Display welcome banner */
+    printf("=====================================\n");
+    printf("             Shellforge\n");
+    printf("     A Unix Style Shell in C\n");
+    printf("=====================================\n");
 
-    using_history();
+    token_list_t tokens;
+    pipeline_t pipeline;
 
     char *line;
 
     while (1)
     {
+        /* Display shell prompt */
         line = readline("shellforge$ ");
 
+        /* Ctrl+D */
         if (line == NULL)
         {
-            printf("\nExiting Shell Forge...\n");
+            printf("\nGoodbye!\n");
             break;
         }
 
+        /* Ignore empty input */
         if (strlen(line) == 0)
         {
             free(line);
             continue;
         }
 
-        add_history(line);
-
-        printf("YOU ENTERED: %s\n", line);
-
-        if (strcmp(line, "history") == 0)
-        {
-            print_history();
-        }
-        else if (strcmp(line, "exit") == 0)
+        /* Exit command */
+        if (strcmp(line, "exit") == 0)
         {
             free(line);
-            printf("Exiting Shell Forge...\n");
+            printf("Exiting...\n");
             break;
         }
 
+        /* Add command to history */
+        add_history(line);
+
+        /*
+         * Initialize token list before lexing.
+         * This depends on your token_list_t structure.
+         */
+        tokens.count = 0;
+
+        /* Lexical analysis */
+        lexer(line, &tokens);
+
+        /* Display tokens */
+        token_print(&tokens);
+
+        /* Parsing */
+        if (parser(&tokens, &pipeline))
+        {
+            /* Expand environment variables */
+            expand_variables(&pipeline);
+
+            /* Display parsed pipeline */
+            pipeline_print(&pipeline);
+        }
+        else
+        {
+            printf("Parser error\n");
+        }
+
+        /* Free input line */
         free(line);
     }
 
