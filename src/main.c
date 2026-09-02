@@ -2,33 +2,36 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <readline/history.h>
 #include <readline/readline.h>
+#include <readline/history.h>
 
+#include "history.h"
 #include "token.h"
 #include "lexer.h"
 #include "parser.h"
 #include "expand.h"
+#include "builtin.h"
+#include "executor.h"
 
 int main(void)
 {
-    /* Display welcome banner */
+    /* Welcome banner */
     printf("=====================================\n");
     printf("             Shellforge\n");
-    printf("     A Unix Style Shell in C\n");
+    printf("     A Unix Style Shell written in C\n");
     printf("=====================================\n");
 
-    token_list_t tokens;
-    pipeline_t pipeline;
+    /* Initialize readline history */
+    using_history();
 
     char *line;
 
     while (1)
     {
-        /* Display shell prompt */
+        /* Read command from user */
         line = readline("shellforge$ ");
 
-        /* Ctrl+D */
+        /* Ctrl+D / EOF */
         if (line == NULL)
         {
             printf("\nGoodbye!\n");
@@ -42,42 +45,52 @@ int main(void)
             continue;
         }
 
-        /* Exit command */
-        if (strcmp(line, "exit") == 0)
+        /* Built-in history command */
+        if (strcmp(line, "history") == 0)
         {
+            print_history();
             free(line);
-            printf("Exiting...\n");
-            break;
+            continue;
         }
 
         /* Add command to history */
         add_history(line);
 
-        /*
-         * Initialize token list before lexing.
-         * This depends on your token_list_t structure.
-         */
-        tokens.count = 0;
+        /* Tokenization */
+        token_list_t tokens;
 
-        /* Lexical analysis */
         lexer(line, &tokens);
 
-        /* Display tokens */
-        token_print(&tokens);
+        /*
+         * Parse tokens into a pipeline.
+         * Only continue if parsing is successful.
+         */
+        pipeline_t pipeline;
 
-        /* Parsing */
-        if (parser(&tokens, &pipeline))
+        if (!parser(&tokens, &pipeline))
         {
-            /* Expand environment variables */
-            expand_variables(&pipeline);
+            fprintf(stderr, "Shellforge: syntax error\n");
+            free(line);
+            continue;
+        }
 
-            /* Display parsed pipeline */
-            pipeline_print(&pipeline);
-        }
-        else
+        /* Expand environment variables */
+        expand_variables(&pipeline);
+
+        /*
+         * Check for the exit command.
+         */
+        if (pipeline.command_count == 1 &&
+            pipeline.commands[0].argc > 0 &&
+            pipeline.commands[0].argv[0] != NULL &&
+            strcmp(pipeline.commands[0].argv[0], "exit") == 0)
         {
-            printf("Parser error\n");
+            free(line);
+            break;
         }
+
+        /* Execute command / pipeline */
+        execute_pipeline(&pipeline);
 
         /* Free input line */
         free(line);
@@ -85,3 +98,4 @@ int main(void)
 
     return 0;
 }
+

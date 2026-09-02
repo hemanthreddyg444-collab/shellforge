@@ -9,7 +9,8 @@ OBJ = src/main.o \
       src/lexer.o \
       src/history.o \
       src/parser.o \
-      src/expand.o
+      src/expand.o \
+      src/builtin.o src/executor.o
 
 $(TARGET): $(OBJ)
 	$(CC) $(OBJ) -o $(TARGET) $(LDFLAGS)
