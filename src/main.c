@@ -1,10 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdio.h> 
+#include <stdlib.h> 
 #include <string.h>
-
-#include <readline/readline.h>
 #include <readline/history.h>
-
+#include <readline/readline.h>
 #include "history.h"
 #include "token.h"
 #include "lexer.h"
@@ -15,87 +13,74 @@
 
 int main(void)
 {
-    /* Welcome banner */
+    // Display a welcome banner when the shell starts
     printf("=====================================\n");
-    printf("             Shellforge\n");
-    printf("     A Unix Style Shell written in C\n");
+    printf("      Shellforge \n");
+    printf(" A Unix Style Shell written in C\n");
     printf("=====================================\n");
 
-    /* Initialize readline history */
-    using_history();
+ /* =============================================
+       INSTALL BACKGROUND PROCESS HANDLER
+       ============================================= */
 
-    char *line;
+    setup_background_handler();
+
+
+ using_history();
+ token_list_t tokens;
+ pipeline_t pipeline;
+ 
+ char *line;
 
     while (1)
     {
-        /* Read command from user */
         line = readline("shellforge$ ");
-
-        /* Ctrl+D / EOF */
         if (line == NULL)
         {
             printf("\nGoodbye!\n");
             break;
         }
-
-        /* Ignore empty input */
         if (strlen(line) == 0)
         {
             free(line);
             continue;
         }
 
-        /* Built-in history command */
-        if (strcmp(line, "history") == 0)
-        {
-            print_history();
-            free(line);
-            continue;
-        }
+       if (strcmp(line, "history") == 0)
+       {
+          print_history();
+          free(line);
+           continue;
+       }
+// milestone 1 - enabling history
 
-        /* Add command to history */
         add_history(line);
 
-        /* Tokenization */
-        token_list_t tokens;
+// milestone 2.1 - tokenization and lexer
 
-        lexer(line, &tokens);
+	lexer(line, &tokens);
 
-        /*
-         * Parse tokens into a pipeline.
-         * Only continue if parsing is successful.
-         */
-        pipeline_t pipeline;
+        // token_print(&tokens);
 
-        if (!parser(&tokens, &pipeline))
-        {
-            fprintf(stderr, "Shellforge: syntax error\n");
-            free(line);
-            continue;
-        }
+// milestone 2.2 - expansion of environment variables and parser
 
-        /* Expand environment variables */
-        expand_variables(&pipeline);
+	if(parser(&tokens, &pipeline))
+	{
+		expand_variables(&pipeline);
+    	//	pipeline_print(&pipeline);
+	}
 
-        /*
-         * Check for the exit command.
-         */
-        if (pipeline.command_count == 1 &&
-            pipeline.commands[0].argc > 0 &&
-            pipeline.commands[0].argv[0] != NULL &&
-            strcmp(pipeline.commands[0].argv[0], "exit") == 0)
-        {
-            free(line);
-            break;
-        }
 
-        /* Execute command / pipeline */
+	if (pipeline.command_count == 1 &&  pipeline.commands[0].argc > 0 && strcmp(pipeline.commands[0].argv[0],"exit") == 0)
+         {
+                free(line);
+                break;
+            }
+
         execute_pipeline(&pipeline);
 
-        /* Free input line */
-        free(line);
-    }
+       free(line);
 
+    }
     return 0;
 }
-
